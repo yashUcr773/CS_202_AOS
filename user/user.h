@@ -1,4 +1,6 @@
 struct stat;
+// include pinfo struct to be used
+struct pinfo;
 
 // system calls
 int fork(void);
@@ -22,6 +24,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+
+// define prototype of sysinfo syscall
+int sysinfo(int);
+// define prototype of procinfo syscall
+int procinfo(struct pinfo*);
 
 // ulib.c
 int stat(const char*, struct stat*);

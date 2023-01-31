@@ -169,6 +169,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  // reset sys_calls count to 0
+  p->sys_call_count = 0; 
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -250,6 +252,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  // set sys_calls count to 0
+  p->sys_call_count = 0;
 
   release(&p->lock);
 }
@@ -680,4 +685,76 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// function to return system info based on param passed
+// return num_active_processes for param = 0
+// return total systam calls made for param = 1
+// return free memory pages for param = 2
+// return -1 for param = rest
+int get_sys_sysinfo(uint64 param, uint64 sys_calls_count)
+{
+
+  if (param == 0)
+  {
+    struct proc *p;
+    static char *states[] = {
+        [UNUSED] "unused",
+        [USED] "used",
+        [SLEEPING] "sleep ",
+        [RUNNABLE] "runble",
+        [RUNNING] "run   ",
+        [ZOMBIE] "zombie"};
+
+    int proc_ctr = 0;
+
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if (states[p->state] == states[RUNNABLE] || states[p->state] == states[RUNNING] || states[p->state] == states[SLEEPING] || states[p->state] == states[ZOMBIE])
+      {
+        proc_ctr += 1;
+      }
+    }
+
+    return proc_ctr;
+  }
+  else if (param == 1)
+  {
+    return sys_calls_count;
+  }
+  else if (param == 2)
+  {
+    int count = get_free_memory();
+    return count;
+  }
+  else
+  {
+    return -1;
+  }
+}
+
+// function to update the structure passed with required values
+// ppid = process id of parent. requires wait_lock to be held
+// syscall_count = count of system calls made by the process
+// page_usage = pages used. xv6 has a 4096 page size and process stores size in bytes.
+// so page count is ceil(sz/4kb)
+// the data is in kernel and needs to be written in user space
+// for this data is copied from using copyout
+int get_sys_procinfo(uint64 addr)
+{
+
+  struct proc *p = myproc();
+  struct pinfo pinf;
+
+  acquire(&wait_lock);
+  pinf.ppid = p->parent->pid;
+  release(&wait_lock);
+
+  pinf.syscall_count = p->sys_call_count;
+  pinf.page_usage = ((p->sz) / 4096) + (((p->sz) % 4096) != 0);
+
+  // copy the data from temp struct to the memory address of struct passed to system call
+  if (copyout(p->pagetable, addr, (char *)&pinf, sizeof(pinf)) < 0)
+    return -1;
+  return 0;
 }
