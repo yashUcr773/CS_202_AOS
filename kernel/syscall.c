@@ -105,6 +105,10 @@ extern uint64 sys_close(void);
 extern uint64 sys_sysinfo(void);
 // add mapped syscall function here.
 extern uint64 sys_procinfo(void);
+// add mapped syscall function here.
+extern uint64 sys_sched_statistics(void);
+// add mapped syscall function here.
+extern uint64 sys_sched_tickets(void);
 
 // ---- system level variables ----
 
@@ -137,6 +141,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_sysinfo]   sys_sysinfo,  // map the defined syscall to a user function.
 [SYS_procinfo]  sys_procinfo, // map the defined syscall to a user function.
+[SYS_sched_statistics]   sys_sched_statistics,  // map the defined syscall to a user function.
+[SYS_sched_tickets]  sys_sched_tickets, // map the defined syscall to a user function.
 };
 
 void

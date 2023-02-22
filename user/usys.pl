@@ -41,3 +41,7 @@ entry("uptime");
 entry("sysinfo");
 # add an entry for procinfo syscall here
 entry("procinfo");
+# add an entry for sched_tickets syscall here
+entry('sched_tickets');
+# add an entry for sched_statistics syscall here
+entry('sched_statistics');
