@@ -20,3 +20,11 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+// define the syscall here, assign it a number and define the corresponding function in syscall.c
+#define SYS_sysinfo     22
+// define the syscall here, assign it a number and define the corresponding function in syscall.c
+#define SYS_procinfo    23
+// define the syscall here, assign it a number and define the corresponding function in syscall.c
+#define SYS_sched_statistics 24
+// define the syscall here, assign it a number and define the corresponding function in syscall.c
+#define SYS_sched_tickets 25

@@ -9,6 +9,14 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+// define the structure of pinfo in defs.h
+// this is same as the one defined in testfile
+struct pinfo {
+    int ppid;               // pid of parent
+    int syscall_count;      // total system calls made since creation
+    int page_usage;         // current processes memory size in pages
+};
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -63,6 +71,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+// function to traverse the freelist linked list and count the number of free pages
+int             get_free_memory(void); 
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -106,6 +116,14 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+// define the process level implementation of sysinfo syscall
+int             get_sys_sysinfo(uint64, uint64);
+// define the process level implementation of procinfo syscall
+int             get_sys_procinfo(uint64 addr);
+// system call to print statistics of the process
+int             sched_statistics(void);
+// set the ticket value
+int             sched_tickets(int tickets);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

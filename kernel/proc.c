@@ -26,6 +26,16 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+// psuedo random number generator
+// https://stackoverflow.com/a/7603688
+unsigned short lfsr = 0xACE1u;
+unsigned short bit;
+unsigned short rand()
+{
+  bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1;
+  return lfsr = (lfsr >> 1) | (bit << 15);
+}
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -146,6 +156,12 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // initialize the default value of ticks, tickets, strides and pass
+  p->ticks = 0;
+  p->tickets = 0;
+  p->strides = 1;
+  p->pass = p->strides;
+
   return p;
 }
 
@@ -169,6 +185,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  // reset sys_calls count to 0
+  p->sys_call_count = 0; 
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -250,6 +268,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  // set sys_calls count to 0
+  p->sys_call_count = 0;
 
   release(&p->lock);
 }
@@ -452,22 +473,111 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    #if defined(LOTTERY)
+      // printf("Lottery Scheduler working\n");
+      for (p = proc; p < &proc[NPROC]; p++)
+        {
+          acquire(&p->lock);
+          int tickets_sum = 0;
+          int total_tickets = 0;
+          if (p->state != RUNNABLE)
+          {
+            release(&p->lock);
+            continue;
+          }
+          struct proc *pp;
+          for (pp = proc; pp < &proc[NPROC]; pp++)
+          {
+            if (pp->state == RUNNABLE)
+            {
+              total_tickets += pp->tickets;
+            }
+          }
+          int win = rand() % (total_tickets + 1);
+          if ((tickets_sum + p->tickets) < win)
+          {
+            tickets_sum += p->tickets;
+            release(&p->lock);
+            continue;
+          }
+          if (p->state == RUNNABLE)
+          {
+            // Switch to chosen process. It is the process's job
+            // to release its lock and then reacquire it
+            // before jumping back to us.
+            p->state = RUNNING;
+            c->proc = p;
+            swtch(&c->context, &p->context);
+            p->ticks++; // lab2
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+          }
+          release(&p->lock);
+        }
+
+    #elif defined(STRIDE)
+      // printf("Stride Scheduler working\n");
+      int min_pass = LARGE_CONSTANT_K;
+      struct proc *min_p = 0;
+      // find the min_p
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if (p->state == RUNNABLE)
+        {
+          if (p->pass < min_pass)
+          {
+            min_pass = p->pass;
+            min_p = p;
+          }
+        }
+        release(&p->lock);
       }
-      release(&p->lock);
-    }
+      if(min_p){
+        p = min_p;
+        acquire(&p->lock);
+        p->pass += p->strides;
+        if (p->state == RUNNABLE)
+        { // should be
+          // Switch to chosen process. It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          p->ticks++; // lab2
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
+      }
+    #else
+      // printf("Default RR Scheduler working\n");
+      // original, nothing changes here
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if (p->state == RUNNABLE)
+        {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          p->ticks++; // lab2
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
+      }
+    #endif
   }
 }
 
@@ -680,4 +790,118 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// function to return system info based on param passed
+// return num_active_processes for param = 0
+// return total systam calls made for param = 1
+// return free memory pages for param = 2
+// return -1 for param = rest
+int get_sys_sysinfo(uint64 param, uint64 sys_calls_count)
+{
+
+  if (param == 0)
+  {
+    struct proc *p;
+    static char *states[] = {
+        [UNUSED] "unused",
+        [USED] "used",
+        [SLEEPING] "sleep ",
+        [RUNNABLE] "runble",
+        [RUNNING] "run   ",
+        [ZOMBIE] "zombie"};
+
+    int proc_ctr = 0;
+
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if (states[p->state] == states[RUNNABLE] || states[p->state] == states[RUNNING] || states[p->state] == states[SLEEPING] || states[p->state] == states[ZOMBIE])
+      {
+        proc_ctr += 1;
+      }
+    }
+
+    return proc_ctr;
+  }
+  else if (param == 1)
+  {
+    return sys_calls_count;
+  }
+  else if (param == 2)
+  {
+    int count = get_free_memory();
+    return count;
+  }
+  else
+  {
+    return -1;
+  }
+}
+
+// function to update the structure passed with required values
+// ppid = process id of parent. requires wait_lock to be held
+// syscall_count = count of system calls made by the process
+// page_usage = pages used. xv6 has a 4096 page size and process stores size in bytes.
+// so page count is ceil(sz/4kb)
+// the data is in kernel and needs to be written in user space
+// for this data is copied from using copyout
+int get_sys_procinfo(uint64 addr)
+{
+
+  struct proc *p = myproc();
+  struct pinfo pinf;
+
+  acquire(&wait_lock);
+  pinf.ppid = p->parent->pid;
+  release(&wait_lock);
+
+  pinf.syscall_count = p->sys_call_count;
+  pinf.page_usage = ((p->sz) / 4096) + (((p->sz) % 4096) != 0);
+
+  // copy the data from temp struct to the memory address of struct passed to system call
+  if (copyout(p->pagetable, addr, (char *)&pinf, sizeof(pinf)) < 0)
+    return -1;
+  return 0;
+}
+
+// print stats as mentioned in lab document
+int sched_statistics(void)
+{
+
+  #if defined(LOTTERY)
+    printf("\n -- Lottery Scheduler -- \n\n");
+  #elif defined(STRIDE)
+    printf("\n -- Stride Scheduler -- \n\n");
+  #else
+    printf("\n  -- RR Scheduler -- \n\n");
+  #endif
+
+  struct proc *p;
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->state != UNUSED)
+    {
+      acquire(&p->lock);
+      printf("%d(%s): tickets: %d, ticks: %d\n", p->pid, p->name, p->tickets, p->ticks);
+      release(&p->lock);
+    }
+  }
+
+  // always return 0 as per lab
+  return 0;
+}
+
+// assign tickets to process 
+int sched_tickets(int tickets)
+{
+  struct proc *p = myproc();
+  p->tickets = tickets;
+  // calculate the value of strides
+  p->strides = LARGE_CONSTANT_K / tickets;
+  // calculate the value of pass
+  p->pass = p->strides;
+
+  // always return 0 as per lab
+  return 0;
 }

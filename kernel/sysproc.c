@@ -6,6 +6,10 @@
 #include "spinlock.h"
 #include "proc.h"
 
+// global system level variables
+// initialize total system calls counter as 0
+uint64 global_sys_calls_counter = 0;
+
 uint64
 sys_exit(void)
 {
@@ -88,4 +92,57 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// body of defined syscall function.
+// call a function in process to execute0.
+// get first argument passed to the system call
+// pass the argument to process level function
+uint64
+sys_sysinfo(void)
+{
+  int n;
+  argint(0, &n);
+  return get_sys_sysinfo(n, global_sys_calls_counter);
+}
+
+// body of defined syscall function.
+// call a function in process to execute0.
+// get first argument passed to the system call
+// pass the argument to process level function
+uint64
+sys_procinfo(void)
+{
+  uint64 pinfo_pointer; // user pointer to struct pinfo
+  argaddr(0, &pinfo_pointer);
+  return get_sys_procinfo(pinfo_pointer);
+}
+
+// print the process statistics
+uint64
+sys_sched_statistics(void)
+{
+  return sched_statistics();
+}
+
+// set tickets to a process. The max set value can only be 10000 as per lab. 
+// The number of tickets can not be negative.
+uint64
+sys_sched_tickets(void)
+{
+  int tickets;
+  argint(0, &tickets);
+  if (tickets > MAX_TICKETS)
+  {
+    tickets = MAX_TICKETS;
+  }
+  else if (tickets <= 0)
+  {
+    tickets = 0;
+  }
+  else
+  {
+    // do nothing
+  }
+  return sched_tickets(tickets);
 }
