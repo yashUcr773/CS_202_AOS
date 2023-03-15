@@ -28,3 +28,5 @@
 #define SYS_sched_statistics 24
 // define the syscall here, assign it a number and define the corresponding function in syscall.c
 #define SYS_sched_tickets 25
+// define the syscall here, assign it a number and define the corresponding function in syscall.c
+#define SYS_clone  26

@@ -146,3 +146,11 @@ sys_sched_tickets(void)
   }
   return sched_tickets(tickets);
 }
+// Implement the clone system call
+uint64 
+sys_clone(void)
+{
+  uint64 addr;
+  argaddr(0, &addr);
+  return clone((void *)addr);
+}
