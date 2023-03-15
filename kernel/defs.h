@@ -124,6 +124,8 @@ int             get_sys_procinfo(uint64 addr);
 int             sched_statistics(void);
 // set the ticket value
 int             sched_tickets(int tickets);
+// implemented clone system call
+int 			clone(void *stack);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

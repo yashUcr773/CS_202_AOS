@@ -117,4 +117,6 @@ struct proc {
   int ticks;                   // Current tick value
   int strides;                 // Current stride value
   int pass;                    // Current pass value
+
+  int thread_id;               // Current thread ID
 };
