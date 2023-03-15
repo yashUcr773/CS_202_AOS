@@ -25,10 +25,15 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
+// sysproc.c
 // define prototype of sysinfo syscall
 int sysinfo(int);
 // define prototype of procinfo syscall
 int procinfo(struct pinfo*);
+// define prototype of sched_statistics syscall
+int sched_statistics(void);
+// define prototype of sched_tickets syscall
+int sched_tickets(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

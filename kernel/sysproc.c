@@ -117,3 +117,32 @@ sys_procinfo(void)
   argaddr(0, &pinfo_pointer);
   return get_sys_procinfo(pinfo_pointer);
 }
+
+// print the process statistics
+uint64
+sys_sched_statistics(void)
+{
+  return sched_statistics();
+}
+
+// set tickets to a process. The max set value can only be 10000 as per lab. 
+// The number of tickets can not be negative.
+uint64
+sys_sched_tickets(void)
+{
+  int tickets;
+  argint(0, &tickets);
+  if (tickets > MAX_TICKETS)
+  {
+    tickets = MAX_TICKETS;
+  }
+  else if (tickets <= 0)
+  {
+    tickets = 0;
+  }
+  else
+  {
+    // do nothing
+  }
+  return sched_tickets(tickets);
+}

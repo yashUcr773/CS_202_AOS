@@ -116,11 +116,14 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
-
 // define the process level implementation of sysinfo syscall
 int             get_sys_sysinfo(uint64, uint64);
 // define the process level implementation of procinfo syscall
 int             get_sys_procinfo(uint64 addr);
+// system call to print statistics of the process
+int             sched_statistics(void);
+// set the ticket value
+int             sched_tickets(int tickets);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

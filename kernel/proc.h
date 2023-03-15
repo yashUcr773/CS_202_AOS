@@ -79,6 +79,13 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
+// constants to be defined as per lab
+// max tickets allowed
+#define MAX_TICKETS 10000
+
+// large constant value
+#define LARGE_CONSTANT_K 10000
+
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -105,4 +112,9 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int sys_call_count;          // Total System calls made by the process
+
+  int tickets;                 // Count of tickets of the process
+  int ticks;                   // Current tick value
+  int strides;                 // Current stride value
+  int pass;                    // Current pass value
 };
